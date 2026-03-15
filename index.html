@@ -737,7 +737,7 @@ class Fighter {
         const dx=other.x-this.x;
         if (Math.abs(dx)<420 && Math.sign(dx)===this.dir) {
           const dmg=this.monster.specialDmg;
-          setTimeout(()=>{ if(!other.guardTimer){other.takeDamage(dmg,this.dir);addParticles(other.x,other.y-50,this.monster.color,25,'hit');} },400);
+          setTimeout(()=>{ if(!other.guardTimer&&!other.hurtTimer){other.takeDamage(dmg,this.dir);addParticles(other.x,other.y-50,this.monster.color,25,'hit');} },400);
         }
         showSpecialText(this.monster.specialName,this.monster.glowColor);
       }
@@ -758,6 +758,7 @@ class Fighter {
     if (!this.onGround) this.vy+=1.1;
     this.x+=this.vx; this.y+=this.vy;
     if (this.y>=this.groundY){this.y=this.groundY;this.vy=0;this.onGround=true;if(this.state==='jump')this.state='idle';}
+    if (this.y<120){this.y=120;this.vy=0;} // 天井
     this.x=Math.max(50,Math.min(W-50,this.x));
     if (this.attackTimer===0&&this.guardTimer===0&&this.state!=='walk'&&this.state!=='jump'&&this.state!=='hurt'&&!this.specialActive) {
       if (Math.abs(this.vx)<0.5) this.state='idle';
@@ -765,8 +766,11 @@ class Fighter {
   }
 
   takeDamage(dmg,fromDir) {
+    if (this.hurtTimer>0) return; // 無敵時間中は追加ダメージなし
     this.hp=Math.max(0,this.hp-dmg);
-    this.hurtTimer=15; this.vx=fromDir*8; this.vy=-5; this.hitFlash=10;
+    this.hurtTimer=30; this.vx=fromDir*5;
+    if (this.onGround) this.vy=-4; // 空中では上方向ノックバックなし
+    this.hitFlash=10;
     addParticles(this.x,this.y-50,this.monster.color,12,'hit');
     addParticles(this.x,this.y-50,'#ffffff',5,'hit');
   }

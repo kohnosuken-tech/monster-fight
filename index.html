@@ -38,7 +38,7 @@
   <canvas id="canvas" width="900" height="500"></canvas>
 </div>
 <div id="controls" id="controlsDiv">
-  <span>移動: A/D ｜ ジャンプ: W ｜ ガード: S ｜ 攻撃: F ｜ 必殺技: G</span>
+  <span>移動: A/D ｜ ジャンプ: W ｜ ガード: S ｜ 攻撃: F ｜ 必殺技: G ｜ 超必殺(カメハメビーム): S+G</span>
 </div>
 <script>
 const canvas = document.getElementById('canvas');
@@ -689,7 +689,9 @@ class Fighter {
     this.specialActive = false; this.specialProgress = 0;
     this.wins = 0;
     this.comboCount = 0; this.comboTimer = 0;
-    this._prevAtk = false; this._prevSpc = false; this._prevJump = false;
+    this._prevAtk = false; this._prevSpc = false; this._prevJump = false; this._prevSuper = false;
+    this.superCooldown = 0;
+    this.superBeamActive = false; this.superBeamProgress = 0;
   }
   get groundY() { return H-80; }
 
@@ -700,14 +702,19 @@ class Fighter {
     if (this.guardTimer>0) this.guardTimer--;
     if (this.hurtTimer>0) this.hurtTimer--;
     if (this.specialCooldown>0) this.specialCooldown--;
+    if (this.superCooldown>0) this.superCooldown--;
     if (this.comboTimer>0) this.comboTimer--; else this.comboCount=0;
 
     if (this.specialActive) {
       this.specialProgress+=0.03;
       if (this.specialProgress>=1){this.specialActive=false;this.specialProgress=0;this.state='idle';}
     }
+    if (this.superBeamActive) {
+      this.superBeamProgress+=0.018;
+      if (this.superBeamProgress>=1){this.superBeamActive=false;this.superBeamProgress=0;this.state='idle';}
+    }
     const inHurt = this.hurtTimer>0;
-    const inSpecial = this.specialActive;
+    const inSpecial = this.specialActive || this.superBeamActive;
     if (inHurt) this.state='hurt';
     if (inSpecial) this.state='special';
 
@@ -734,7 +741,19 @@ class Fighter {
         }
       }
       this._prevAtk=atkKey;
-      if (spcKey && !this._prevSpc && this.specialCooldown===0) {
+      // 超必殺技: ガード同時押し + 必殺技ボタン
+      const superKey = (this.playerNum===1) ? (keys['s']&&keys['g']) : (keys['ArrowDown']&&keys['l']);
+      if (superKey && !this._prevSuper && this.superCooldown===0) {
+        this.superBeamActive=true; this.superBeamProgress=0; this.superCooldown=360;
+        const dx=other.x-this.x;
+        if (Math.sign(dx)===this.dir) {
+          setTimeout(()=>{ if(!other.guardTimer&&!other.hurtTimer){other.takeDamage(100,this.dir);addParticles(other.x,other.y-60,this.monster.color,40,'hit');addParticles(other.x,other.y-60,'#ffffff',20,'hit');} },700);
+        }
+        showSpecialText('超必殺！カメハメビーム！','#ffffff');
+      }
+      this._prevSuper=superKey;
+
+      if (!superKey && spcKey && !this._prevSpc && this.specialCooldown===0) {
         this.specialActive=true; this.specialProgress=0; this.specialCooldown=180;
         const dx=other.x-this.x;
         if (Math.abs(dx)<420 && Math.sign(dx)===this.dir) {
@@ -757,6 +776,7 @@ class Fighter {
     if (!inHurt && !inSpecial && jumpKey&&!this._prevJump&&this.onGround){this.vy=-this.monster.jumpPower;this.onGround=false;this.state='jump';}
     this._prevJump=jumpKey;
 
+    if (this.vy<0) this.onGround=false; // 上昇中は必ず空中扱い
     if (!this.onGround) this.vy+=1.1;
     this.x+=this.vx; this.y+=this.vy;
     if (this.y>=this.groundY){this.y=this.groundY;this.vy=0;this.onGround=true;if(this.state==='jump')this.state='idle';}
@@ -765,6 +785,81 @@ class Fighter {
     if (this.attackTimer===0&&this.guardTimer===0&&this.state!=='walk'&&this.state!=='jump'&&this.state!=='hurt'&&!this.specialActive) {
       if (Math.abs(this.vx)<0.5) this.state='idle';
     }
+  }
+
+  _drawSuperBeam() {
+    const p = this.superBeamProgress;
+    const bx = this.x + this.dir*30;
+    const by = this.y - 70;
+    const beamLen = W * 1.2;
+
+    ctx.save();
+    if (p < 0.25) {
+      // 溜め演出：エネルギー収束
+      const chargeR = p/0.25;
+      ctx.shadowColor='#ffffff'; ctx.shadowBlur=40;
+      // 外周リング
+      for (let i=0;i<3;i++) {
+        ctx.strokeStyle=`rgba(255,255,255,${0.6-i*0.15})`;
+        ctx.lineWidth=6-i*1.5;
+        ctx.beginPath(); ctx.arc(bx,by,(1-chargeR)*80+chargeR*20+i*8,0,Math.PI*2); ctx.stroke();
+      }
+      // 収束パーティクル（静的に描画）
+      for (let i=0;i<12;i++) {
+        const ang=(i/12)*Math.PI*2+p*20;
+        const dist=(1-chargeR)*120+10;
+        const px=bx+Math.cos(ang)*dist, py=by+Math.sin(ang)*dist;
+        ctx.fillStyle=`rgba(${200+Math.floor(55*chargeR)},${Math.floor(200*(1-chargeR))},255,${chargeR})`;
+        ctx.beginPath(); ctx.arc(px,py,4+chargeR*4,0,Math.PI*2); ctx.fill();
+      }
+      // 中心の玉
+      const grd=ctx.createRadialGradient(bx,by,0,bx,by,20*chargeR+5);
+      grd.addColorStop(0,'#ffffff'); grd.addColorStop(0.5,this.monster.color); grd.addColorStop(1,'transparent');
+      ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(bx,by,20*chargeR+5,0,Math.PI*2); ctx.fill();
+      ctx.shadowBlur=0;
+    } else {
+      // ビーム発射
+      const bp=(p-0.25)/0.75;
+      const endX=bx+this.dir*beamLen;
+      const beamH=Math.max(8, 60*(1-bp*0.7));
+
+      // 画面フラッシュ（序盤）
+      if (bp<0.1) {
+        ctx.fillStyle=`rgba(255,255,255,${(0.1-bp)/0.1*0.4})`;
+        ctx.fillRect(0,0,W,H);
+      }
+
+      // ビーム本体（複数層）
+      const layers=[
+        {w:beamH*1.8, color:`rgba(255,255,255,${0.3*(1-bp*0.5)})`},
+        {w:beamH*1.2, color:this.monster.color+Math.floor((1-bp*0.3)*255).toString(16).padStart(2,'0')},
+        {w:beamH*0.5, color:`rgba(255,255,255,${0.9*(1-bp*0.4)})`},
+      ];
+      for (const l of layers) {
+        ctx.shadowColor='#ffffff'; ctx.shadowBlur=30;
+        ctx.fillStyle=l.color;
+        ctx.beginPath();
+        ctx.moveTo(bx, by-l.w/2);
+        ctx.lineTo(endX, by-l.w/4);
+        ctx.lineTo(endX, by+l.w/4);
+        ctx.lineTo(bx, by+l.w/2);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.shadowBlur=0;
+
+      // ビーム先端の爆発
+      const tipX=bx+this.dir*beamLen*Math.min(1,(bp+0.1)*1.1);
+      const expR=beamH*(0.8+Math.sin(bp*20)*0.2);
+      const eg=ctx.createRadialGradient(tipX,by,0,tipX,by,expR);
+      eg.addColorStop(0,'#ffffff'); eg.addColorStop(0.3,this.monster.color); eg.addColorStop(1,'transparent');
+      ctx.fillStyle=eg; ctx.beginPath(); ctx.arc(tipX,by,expR,0,Math.PI*2); ctx.fill();
+
+      // 発射口の輝き
+      const og=ctx.createRadialGradient(bx,by,0,bx,by,30);
+      og.addColorStop(0,'#ffffff'); og.addColorStop(1,'transparent');
+      ctx.fillStyle=og; ctx.beginPath(); ctx.arc(bx,by,30,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
   }
 
   takeDamage(dmg,fromDir) {
@@ -787,6 +882,7 @@ class Fighter {
       ctx.restore();
     }
     if (this.specialActive) this.monster.drawSpecial(ctx,this.x,this.y,this.dir,this.specialProgress);
+    if (this.superBeamActive) this._drawSuperBeam();
     if (this.comboCount>=2&&this.comboTimer>20) {
       ctx.fillStyle='#ffff00'; ctx.font='bold 20px Courier New'; ctx.textAlign='center';
       ctx.shadowColor='#ffaa00'; ctx.shadowBlur=10;

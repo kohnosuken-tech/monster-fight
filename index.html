@@ -706,17 +706,19 @@ class Fighter {
       this.specialProgress+=0.03;
       if (this.specialProgress>=1){this.specialActive=false;this.specialProgress=0;this.state='idle';}
     }
-    if (this.hurtTimer>0){this.state='hurt';return;}
-    if (this.specialActive){this.state='special';return;}
+    const inHurt = this.hurtTimer>0;
+    const inSpecial = this.specialActive;
+    if (inHurt) this.state='hurt';
+    if (inSpecial) this.state='special';
 
     if (other.x>this.x) this.dir=1; else this.dir=-1;
 
     const guardKey = keys['s']||keys['ArrowDown'];
-    if (guardKey && this.onGround && this.attackTimer===0) {
+    if (!inHurt && !inSpecial && guardKey && this.onGround && this.attackTimer===0) {
       this.state='guard'; this.guardTimer=2; this.vx*=0.7;
     }
 
-    if (this.attackTimer===0 && this.hurtTimer===0) {
+    if (!inHurt && !inSpecial && this.attackTimer===0) {
       const atkKey = keys['f']||keys['k'];
       const spcKey = keys['g']||keys['l'];
       if (atkKey && !this._prevAtk) {
@@ -744,7 +746,7 @@ class Fighter {
       this._prevSpc=spcKey;
     }
 
-    if (!this.specialActive && this.attackTimer<10) {
+    if (!inHurt && !inSpecial && this.attackTimer<10) {
       const lk=keys['a']||keys['ArrowLeft'], rk=keys['d']||keys['ArrowRight'];
       if (lk){this.vx=-this.monster.speed;if(this.state!=='attack')this.state='walk';}
       else if (rk){this.vx=this.monster.speed;if(this.state!=='attack')this.state='walk';}
@@ -752,7 +754,7 @@ class Fighter {
     }
 
     const jumpKey=keys['w']||keys['ArrowUp'];
-    if (jumpKey&&!this._prevJump&&this.onGround){this.vy=-this.monster.jumpPower;this.onGround=false;this.state='jump';}
+    if (!inHurt && !inSpecial && jumpKey&&!this._prevJump&&this.onGround){this.vy=-this.monster.jumpPower;this.onGround=false;this.state='jump';}
     this._prevJump=jumpKey;
 
     if (!this.onGround) this.vy+=1.1;

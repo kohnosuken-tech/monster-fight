@@ -50,7 +50,7 @@ const MONSTERS = [
   {
     id: 0, name: 'ドラコン', nameEn: 'DRAKON', desc: '炎の竜神',
     color: '#ff4400', color2: '#ff8800', glowColor: '#ff4400',
-    hp: 180, speed: 4.5, jumpPower: 14, attackDmg: 18, specialDmg: 45,
+    hp: 180, speed: 4.5, jumpPower: 10, attackDmg: 18, specialDmg: 45,
     specialName: '竜炎爆発',
     draw(ctx, x, y, dir, state, frame) {
       const f = Math.floor(frame / 8) % 2;
@@ -112,7 +112,7 @@ const MONSTERS = [
   {
     id: 1, name: 'スライモア', nameEn: 'SLIMOR', desc: '毒液の巨体',
     color: '#44ff44', color2: '#88ff88', glowColor: '#00ff44',
-    hp: 220, speed: 3, jumpPower: 11, attackDmg: 14, specialDmg: 55,
+    hp: 220, speed: 3, jumpPower: 8, attackDmg: 14, specialDmg: 55,
     specialName: '毒液大爆発',
     draw(ctx, x, y, dir, state, frame) {
       const bounce = Math.abs(Math.sin(frame*0.15))*6;
@@ -167,7 +167,7 @@ const MONSTERS = [
   {
     id: 2, name: 'サンダーウルフ', nameEn: 'THUNDERWOLF', desc: '雷撃の狼王',
     color: '#4488ff', color2: '#aaddff', glowColor: '#88aaff',
-    hp: 170, speed: 6, jumpPower: 16, attackDmg: 16, specialDmg: 40,
+    hp: 170, speed: 6, jumpPower: 11, attackDmg: 16, specialDmg: 40,
     specialName: '雷閃崩撃',
     draw(ctx, x, y, dir, state, frame) {
       ctx.save(); ctx.translate(x,y);
@@ -237,7 +237,7 @@ const MONSTERS = [
   {
     id: 3, name: 'ストーンゴレム', nameEn: 'STONEGOLEM', desc: '岩石の守護者',
     color: '#888866', color2: '#aaaaaa', glowColor: '#aaaaaa',
-    hp: 280, speed: 2.5, jumpPower: 9, attackDmg: 22, specialDmg: 65,
+    hp: 280, speed: 2.5, jumpPower: 6, attackDmg: 22, specialDmg: 65,
     specialName: '大地震撃',
     draw(ctx, x, y, dir, state, frame) {
       ctx.save(); ctx.translate(x,y);
@@ -290,7 +290,7 @@ const MONSTERS = [
   {
     id: 4, name: 'おじさん', nameEn: 'OJISAN', desc: '最強のサラリーマン',
     color: '#5566aa', color2: '#889ddd', glowColor: '#8899ff',
-    hp: 200, speed: 3.5, jumpPower: 10, attackDmg: 20, specialDmg: 50,
+    hp: 200, speed: 3.5, jumpPower: 7, attackDmg: 20, specialDmg: 50,
     specialName: '説教ビーム',
     draw(ctx, x, y, dir, state, frame) {
       const waddle = state==='walk' ? Math.sin(frame*0.28)*4 : 0;
@@ -415,7 +415,7 @@ const MONSTERS = [
   {
     id: 5, name: 'おばさん', nameEn: 'OBASAN', desc: '最恐の主婦',
     color: '#dd6699', color2: '#ffaacc', glowColor: '#ff88bb',
-    hp: 195, speed: 4, jumpPower: 12, attackDmg: 16, specialDmg: 48,
+    hp: 195, speed: 4, jumpPower: 9, attackDmg: 16, specialDmg: 48,
     specialName: 'エコバッグ旋風',
     draw(ctx, x, y, dir, state, frame) {
       ctx.save(); ctx.translate(x,y);
@@ -722,7 +722,7 @@ class Fighter {
       if (atkKey && !this._prevAtk) {
         this.attackTimer=20; this.state='attack';
         const dx=other.x-this.x;
-        if (Math.abs(dx)<95 && Math.sign(dx)===this.dir) {
+        if (Math.abs(dx)<160 && Math.sign(dx)===this.dir) {
           if (other.guardTimer>0) {
             addParticles(other.x,other.y-50,'#ffffff',8,'guard'); other.vx+=this.dir*3;
           } else {
@@ -755,7 +755,7 @@ class Fighter {
     if (jumpKey&&!this._prevJump&&this.onGround){this.vy=-this.monster.jumpPower;this.onGround=false;this.state='jump';}
     this._prevJump=jumpKey;
 
-    if (!this.onGround) this.vy+=0.6;
+    if (!this.onGround) this.vy+=1.1;
     this.x+=this.vx; this.y+=this.vy;
     if (this.y>=this.groundY){this.y=this.groundY;this.vy=0;this.onGround=true;if(this.state==='jump')this.state='idle';}
     this.x=Math.max(50,Math.min(W-50,this.x));
